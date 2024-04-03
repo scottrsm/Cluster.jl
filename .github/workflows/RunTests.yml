@@ -1,0 +1,22 @@
+name: RunTests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        julia-verison: [1.10]
+        julia-arch: [x64]
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: julia-actions/setup-julia@latest
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/julia-buildpkg@latest
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/julia-runtest@latest
+        with:
+          version: ${{ matrix.julia-version }}
+
