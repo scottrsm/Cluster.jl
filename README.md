@@ -1,4 +1,4 @@
-# Cluster-jl
+# Cluster.jl
 Implements a version of **kmeans** clustering.
 The potential novelty being:
 - A larger variety of metrics.
