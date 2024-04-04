@@ -14,9 +14,9 @@ Random.seed!(1)
 
 # Constants used to set algo parameters.
 const TOL            ::Float64 = 1.0e-4
-const NUM_TRIALS_T1  ::Int64   = 300
-const NUM_TRIALS_IRIS::Int64   = 1000
-const NUM_ITERATIONS ::Int64   = 1000
+const NUM_TRIALS_T1  ::Int   = 300
+const NUM_TRIALS_IRIS::Int   = 1000
+const NUM_ITERATIONS ::Int   = 1000
 const KM_THRESHOLD   ::Float64 = 1.0e-2
 
 # Synthetic data for test: T1.
@@ -99,7 +99,7 @@ end
     N, M = size(iris)
     iris[!, :Cluster] = map(i -> mp[i], 1:N)
     specs = Symbol.(iris[!, :Species])
-    clus = Int64.(iris[!, :Cluster])
+    clus = Int.(iris[!, :Cluster])
     res = raw_confusion_matrix(specs, clus)
 
     @test res[3] == CM
