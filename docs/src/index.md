@@ -84,15 +84,15 @@ lie in some lower dimensional hyperplane in the ambient space.
 ## Cluster Functions
 
 ```@docs
-kmeans_cluster(::Matrix{T}, ::Int64 = 3; ::F = L2, ::Float64 = 1.0e-3,::Union{Nothing, AbstractMatrix{T}} = nothing,::Int64 = 1000, ::Int64=0) where {T <: Real, F <: Function}
+kmeans_cluster(::Matrix{T}, ::Int = 3; ::F = L2, ::Float64 = 1.0e-3,::Union{Nothing, AbstractMatrix{T}} = nothing,::Int = 1000, ::Int=0) where {T <: Real, F <: Function}
 ```
 
 ```@docs
-find_best_info_for_ks(::Matrix{T}, ::UnitRange{Int64}; ::F=L2, ::Float64=1.0e-3, ::Union{Nothing, AbstractMatrix{T}}=nothing, ::Int64=1000, ::Int64=300, ::Int64=1) where{T <: Real, F <: Function}
+find_best_info_for_ks(::Matrix{T}, ::UnitRange{Int}; ::F=L2, ::Float64=1.0e-3, ::Union{Nothing, AbstractMatrix{T}}=nothing, ::Int=1000, ::Int=300, ::Int=1) where{T <: Real, F <: Function}
 ```
 
 ```@docs
-find_best_cluster(::Matrix{T}, ::UnitRange{Int64}; ::F=L2, ::Float64=1.0e-3, ::Union{Nothing, AbstractMatrix{T}}=nothing, ::Int64=1000, ::Int64=300, ::Int64=1, ::Bool=false) where{T <: Real, F <: Function}
+find_best_cluster(::Matrix{T}, ::UnitRange{Int}; ::F=L2, ::Float64=1.0e-3, ::Union{Nothing, AbstractMatrix{T}}=nothing, ::Int=1000, ::Int=300, ::Int=1, ::Bool=false) where{T <: Real, F <: Function}
 ```
 
 ## Metric Functions
@@ -102,7 +102,7 @@ L2(::AbstractVector{T},::AbstractVector{T}; M=::Union{Nothing, AbstractMatrix{T}
 ```
 
 ```@docs
-LP(::AbstractVector{T},::AbstractVector{T}, ::Int64) where {T <: Real}
+LP(::AbstractVector{T},::AbstractVector{T}, ::Int) where {T <: Real}
 ```
 
 ```@docs
