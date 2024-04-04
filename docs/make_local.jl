@@ -1,4 +1,4 @@
 using Documenter, Cluster
 
-makedocs(sitename="Cluster Docs")
+makedocs(sitename="Cluster")
 
