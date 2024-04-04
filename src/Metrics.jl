@@ -56,7 +56,7 @@ Computes the ``L_p`` distance between two vectors.
 # Arguments
 - `x::AbstractVector{T}` : A numeric vector.
 - `y::AbstractVector{T}` : A numeric vector.
-- `p::Int64`     : The power of the norm.
+- `p::Int`     : The power of the norm.
 
 # Input Contract (Low level function -- Input contract not checked)
 - ``|{\\bf x}| = |{\\bf y}|``
@@ -67,7 +67,7 @@ Computes the ``L_p`` distance between two vectors.
 """
 function LP(x::AbstractVector{T},
             y::AbstractVector{T},
-            p::Int64     ) where {T <: Real}
+            p::Int     ) where {T <: Real}
 
     return LA.norm(x .- y, p)
 end
@@ -219,7 +219,7 @@ There are no row or column labels for this matrix.
 - |act| = |pred|
 
 # Return
-Matrix{Int64}: A 3-tuple consisting of:
+Matrix{Int}: A 3-tuple consisting of:
 - Vector of unique values of `act`.  (Sorted from lowest to highest, otherwise the order returned from unique.)
 - Vector of unique values of `pred`. (Sorted from lowest to highest, otherwise the order returned from unique.)
 - A matrix of counts for all pairings of discrete values of `act` with `pred`.
@@ -255,8 +255,8 @@ function raw_confusion_matrix(act::AbstractVector{A}, pred::AbstractVector{P}) w
 
     # Confusion Matrix -- to be filled in.
     CM = fill(0, a_N, p_N)
-    da = Dict{A, Int64}()
-    dp = Dict{P, Int64}()
+    da = Dict{A, Int}()
+    dp = Dict{P, Int}()
 
     # Map the actual values to index order as assigned by either sort;
     # or, in case the values are not sortable, the function unique.
