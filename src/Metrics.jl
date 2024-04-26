@@ -56,7 +56,7 @@ Computes the ``L_p`` distance between two vectors.
 # Arguments
 - `x::AbstractVector{T}` : A numeric vector.
 - `y::AbstractVector{T}` : A numeric vector.
-- `p::Int`     : The power of the norm.
+- `p::Int`               : The power of the norm.
 
 # Input Contract (Low level function -- Input contract not checked)
 - ``|{\\bf x}| = |{\\bf y}|``
@@ -219,9 +219,9 @@ There are no row or column labels for this matrix.
 - |act| = |pred|
 
 # Return
-Matrix{Int}: A 3-tuple consisting of:
-- Vector of unique values of `act`.  (Sorted from lowest to highest, otherwise the order returned from unique.)
-- Vector of unique values of `pred`. (Sorted from lowest to highest, otherwise the order returned from unique.)
+Tuple{Vector{A}, Vector{P}, Matrix{Int}}: A 3-tuple consisting of:
+- Vector of unique values of `act`.  (Sorted from lowest to highest, otherwise the order returned from the function `unique`.)
+- Vector of unique values of `pred`. (Sorted from lowest to highest, otherwise the order returned from the function `unique`.)
 - A matrix of counts for all pairings of discrete values of `act` with `pred`.
 """
 function raw_confusion_matrix(act::AbstractVector{A}, pred::AbstractVector{P}) where {A, P}
@@ -259,13 +259,13 @@ function raw_confusion_matrix(act::AbstractVector{A}, pred::AbstractVector{P}) w
     dp = Dict{P, Int}()
 
     # Map the actual values to index order as assigned by either sort;
-    # or, in case the values are not sortable, the function unique.
+    # or, in case the values are not sortable, the function `unique`.
     @inbounds for i in 1:a_N
         da[a_vals[i]] = i
     end
     
     # Map the predicted values to index order as assigned by either sort;
-    # or, in case the values are not sortable, the function unique.
+    # or, in case the values are not sortable, the function `unique`.
     @inbounds for i in 1:p_N
         dp[p_vals[i]] = i
     end
@@ -307,10 +307,16 @@ Matrix{Any}:
   all *predicted* values (in sorted order if sortable).
 """
 function confusion_matrix(act::AbstractVector{A}, pred::AbstractVector{P}) where {A, P}
-    res = confusion_matrix(act, pred)
+	# Get the raw confusion matrix.
+    res = raw_confusion_matrix(act, pred)
+
+	# Get the size of the raw confusion matrix.
     N, M = size(res[3])
+
+	# Create the matrix for the confusion matrix.
     PM = Matrix(undef, N+1, M+1)
 
+	# Fill it.
     PM[2:N+1, 2:M+1] = copy(res[3]) # Fill in confusion matrix in lower right of `PM`.
     PM[2:N+1, 1    ] = res[1]       # Fill in actual values on the left of `PM`.
     PM[1    , 2:M+1] = res[2]       # Fill in predicted values on the top of `PM`.

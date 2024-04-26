@@ -26,11 +26,11 @@ Groups a set of points into `k` clusters based on the distance metric, `dmetric`
 - `F <: Function`
 
 # Arguments
-- `X::Matrix{T}`  : (n,m) Matrix representing `m` points of dimension `n`.
-- `k::Int=3`    : The number of clusters to form.
+- `X::Matrix{T}`   : (n,m) Matrix representing `m` points of dimension `n`.
+- `k::Int=3`       : The number of clusters to form.
 
 # Keyword Arguments
-- `dmetric::F=L2` : The distance metric to use.
+- `dmetric::F=L2`  : The distance metric to use.
 - `threshold::Float=1.0e-2`  : The relative error improvement threshold (using total variation)
 - `W::Union{Nothing, AbstractMatrix{T}}=nothing` : Optional `(nxn)` weight matrix for metric.
 - `N::Int=1000`    : The maximum number of iterations to try.
@@ -45,12 +45,12 @@ Groups a set of points into `k` clusters based on the distance metric, `dmetric`
 
 # Return
 A Tuple:
-- `Dict{Int, Int}`: Mapping of points (`n`-vectors) indices to centroid indices.
-- `Matrix{T}`         : (nxk) Matrix representing `k` centroids of `n`-vectors.
-- `Float64`           : The total variation between points and their centroids (using `dmetric`).
+- `Dict{Int, Int}`  : Mapping of points (`n`-vectors) indices to centroid indices.
+- `Matrix{T}`       : (nxk) Matrix representing `k` centroids of `n`-vectors.
+- `Float64`         : The total variation between points and their centroids (using `dmetric`).
 - `Vector{Int}`     : Unused centroids (by index).
 - `Int`             : The number of iterations to use for the algorithm to complete.
-- `Bool`              : Did algorithm converge.
+- `Bool`            : Did algorithm converge.
 """
 function kmeans_cluster(X::Matrix{T},
                         k::Int=3;
@@ -195,15 +195,15 @@ The groupings are determined based on the distance metric, `dmetric`.
 
 # Arguments
 - `X::Matrix{T}`           : (n,m) Matrix representing `m` points of dimension `n`.
-- `kRng::UnitRange{Int}` : The number of clusters to form.
+- `kRng::UnitRange{Int}`   : The number of clusters to form.
 
 # Keyword Arguments
 - `dmetric::F=L2`          : The distance metric to use.
 - `threshold::Float=1.0e-2`: The relative error improvement threshold (using total variation)
 - `W::Union{Nothing, AbstractMatrix{T}}=nothing` : Optional Weight matrix for metric.
-- `N::Int=1000`          : The maximum number of kmeans_clustering iterations to try for each cluster number.
-- `num_trials::Int=300`  : The number of times to run kmeans_clustering for a given cluster number. 
-- `seed::Int=1`          : The random seed to use. (Used by kmeans_cluster to do initial clustering.)
+- `N::Int=1000`            : The maximum number of kmeans_clustering iterations to try for each cluster number.
+- `num_trials::Int=300`    : The number of times to run kmeans_clustering for a given cluster number. 
+- `seed::Int=1`            : The random seed to use. (Used by kmeans_cluster to do initial clustering.)
     
 # Input Contract
 - ``W = {\\rm nothing} ∨ \\left( ({\\rm typeof}(W) = {\\rm Matrix}\\{T\\}) ∧ W \\in {\\boldsymbol S}_{++}^{n} \\right)``
@@ -214,7 +214,7 @@ The groupings are determined based on the distance metric, `dmetric`.
 # Return
 A Tuple with entries:
 - `OrderedDict{Int, Float}`         : 1:k -> The Total Variation for each cluster number.
-- `OrderedDict{Int, Vector{Int}}` : 1:k -> Mapping of index of points (n-vectors in `X`) to centroid indices.
+- `OrderedDict{Int, Vector{Int}}`   : 1:k -> Mapping of index of points (n-vectors in `X`) to centroid indices.
 - `OrderedDict{Int, Matrix{T}}`     : 1:k -> (nxk) Matrix representing `k` `n`-vector centroids.
 - `OrderedDict{Int, Vector{In64}}`  : 1:k -> Vector of unused centroids by index.
 """
@@ -299,15 +299,15 @@ that the returned value of `k` is less that any value in the cluster range, `kRn
 
 # Arguments
 - `X::Matrix{T}`           : (n,m) Matrix representing `m` points of dimension `n`.
-- `kRng::UnitRange{Int}` : The range of potential cluster values to try.
+- `kRng::UnitRange{Int}`   : The range of potential cluster values to try.
 
 # Keyword Arguments
 - `dmetric::F=L2`          : The distance metric to use.
 - `threshold::Float=1.0e-2`: The relative error improvement threshold (using total variation)
 - `W::Union{Nothing, AbstractMatrix{T}}=nothing` : Optional Weight matrix for metric.
-- `N::Int=1000`          : The maximum number of kmeans_clustering iterations to try for each cluster number.
-- `num_trials::Int=300`  : The number of times to run kmeans_clustering for a given cluster number. 
-- `seed::Int=1`          : The random seed to use. (Used by kmeans_cluster to do initial clustering.)
+- `N::Int=1000`            : The maximum number of kmeans_clustering iterations to try for each cluster number.
+- `num_trials::Int=300`    : The number of times to run kmeans_clustering for a given cluster number. 
+- `seed::Int=1`            : The random seed to use. (Used by kmeans_cluster to do initial clustering.)
 - `verbose::Bool=false`    : If `true`, print diagnostic information.
     
 # Input Contract
@@ -318,10 +318,10 @@ that the returned value of `k` is less that any value in the cluster range, `kRn
 
 # Return
 A Tuple:
-- `Int`             : The "best" cluster number, `k`.
+- `Int`           : The "best" cluster number, `k`.
 - `Dict{Int, Int}`: Mapping of points (`n`-vectors) indices to centroid indices.
-- `Matrix{T}`         : Cluster centroids, represented as an `(n,k)` matrix.
-- `Float64`           : The total variation between points and their centroids (using `dmetric`).
+- `Matrix{T}`     : Cluster centroids, represented as an `(n,k)` matrix.
+- `Float64`       : The total variation between points and their centroids (using `dmetric`).
 """
 function find_best_cluster(X::Matrix{T},
                            kRng::UnitRange{Int};
