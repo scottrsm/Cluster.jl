@@ -55,6 +55,7 @@ end
 
 @testset "Cluster (Test find_best_cluster: T1)  " begin
     kbest, mp, xc, ds = find_best_cluster(M, 2:15                    ;
+										  seed = 1                   ,
                                           num_trials = NUM_TRIALS_T1 , 
                                           N          = NUM_ITERATIONS, 
                                           threshold  = KM_THRESHOLD   )
@@ -78,16 +79,16 @@ end
     #--------------------------
     kbest, mp, xc, ds = find_best_cluster(MI, 2:7                     ; 
                                           dmetric=L2                  , 
+										  seed = 1                    ,
                                           num_trials = NUM_TRIALS_IRIS, 
                                           N          = NUM_ITERATIONS , 
                                           threshold  = KM_THRESHOLD    )
 
     C = [3.409803921568628 2.6999999999999997 3.0782608695652165; 
          5.003921568627451 5.800000000000001 6.823913043478258   ] 
-    CM = [50 0 0  ;
-           0 38 12;
-           1 15 34 ]
-
+    CM = [ 50 0 0  ;
+           0 38 12 ;
+           1 15 34  ]
 
     best_var = 62.69987288875754
 
@@ -99,7 +100,16 @@ end
     N, M = size(iris)
     iris[!, :Cluster] = map(i -> mp[i], 1:N)
     specs = Symbol.(iris[!, :Species])
-    clus = Int.(iris[!, :Cluster])
+
+	# Map clusters to species
+	d = Dict{Int,Symbol}()
+	d[1] = :setosa
+	d[2] = :versicolor
+	d[3] = :virginica
+
+	clus = map(x -> d[x], iris[!, :Cluster])
+
+	# See how close our mapping of clusters to species compares with the actual species.
     res = raw_confusion_matrix(specs, clus)
 
     @test res[3] == CM
@@ -109,6 +119,7 @@ end
     #--------------------------
     L1_metric = (x,y;kwargs...) -> LP(x,y,1;kwargs...) 
     kbest, mp, xc, ds = find_best_cluster(MI, 2:7                     ; 
+										  seed = 1                    ,
                                           dmetric    = L1_metric      ,
                                           num_trials = NUM_TRIALS_IRIS, 
                                           N          = NUM_ITERATIONS ,
@@ -129,6 +140,7 @@ end
     #----- Kullback-Leibler metric.
     #--------------------------
     kbest, mp, xc, ds = find_best_cluster(MI, 2:7                     ; 
+										  seed = 1                    ,
                                           dmetric    = KL             , 
                                           num_trials = NUM_TRIALS_IRIS, 
                                           N          = NUM_ITERATIONS , 
@@ -148,6 +160,7 @@ end
     #----- Cosine metric.
     #--------------------------
     kbest, mp, xc, ds = find_best_cluster(MI, 2:7                     ; 
+										  seed = 1                    ,
                                           dmetric    = CD             , 
                                           num_trials = NUM_TRIALS_IRIS, 
                                           N          = NUM_ITERATIONS , 
@@ -167,6 +180,7 @@ end
     #----- Jaccard metric.
     #--------------------------
     kbest, mp, xc, ds = find_best_cluster(MI, 2:7                     ; 
+										  seed = 1                    ,
                                           dmetric    = JD             , 
                                           num_trials = NUM_TRIALS_IRIS, 
                                           N          = NUM_ITERATIONS , 

@@ -202,6 +202,23 @@ function CD(x::AbstractVector{T},
 end
 
 
+# Check if a vector is sortable.
+function is_sortable(xs::AbstractVector)
+	N = length(xs)
+	sortable = true
+
+	try
+		for i in 1:(N-1)
+			xs[i] < xs[i+1]
+		end
+	catch
+		sortable = false
+	end
+
+	return sortable
+end
+
+
 """
     raw_confusion_matrix(act, pred)
 
@@ -231,27 +248,20 @@ function raw_confusion_matrix(act::AbstractVector{A}, pred::AbstractVector{P}) w
     if length(pred) != N
         throw(DomainError(N, "confusion_matrix: Vector inputs, `act` and `pred` do NOT have the same length"))
     end
+
     # Get unique values of actual values and their associated length.
     a_vals = unique(act)
-    try 
-        if ! ( a_vals[1] < a_vals[1] )
-            sort!(a_vals)
-        end
-    catch 
-    end
-
     a_N = length(a_vals)
 
-    # Get unique values of predicted values and their associated length.
+	# Check that the vector is sortable, if so -- sort.
+	is_sortable(a_vals) && sort!(a_vals)
+    
+	# Get unique values of predicted values and their associated length.
     p_vals = unique(pred)
-    try 
-        if ! ( p_vals[1] < p_vals[1] )
-            sort!(p_vals)
-        end
-    catch 
-    end
-
     p_N = length(p_vals)
+
+	# Check that the vector is sortable, if so -- sort.
+	is_sortable(p_vals) && sort!(p_vals)
 
     # Confusion Matrix -- to be filled in.
     CM = fill(0, a_N, p_N)
