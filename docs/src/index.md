@@ -11,7 +11,7 @@ that one can use with K-means clustering.
 Additionally, some of the metrics may be weighted which can be used to help alleviate  
 **K-means** attraction to spherical clusters.
 
-This module also has the functionality to determine the cluster size of a data set.
+This module also has the functionality to determine the **cluster size** of a data set.
 
 Cluster functions (from lowest to highest level):
 - `kmeans_cluster`: Given a cluster number and metric, determine clusters. 
