@@ -6,12 +6,11 @@ import Random as R
 import DataStructures as DS
 
 include("Metrics.jl")
-using .Metrics: L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix
-
+using .Metrics: L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix, find_cluster_map, predict
 # Export the K-means functions: 
 # Base k-means function; K-means function to get information over a range of clusters;
 # and function that finds the best K-means cluster.
-export kmeans_cluster, find_best_info_for_ks, find_best_cluster
+export kmeans_cluster, find_best_info_for_ks, find_best_cluster, find_cluster_map, predict
 
 # Export the metric and fit metric functions: 
 export L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix

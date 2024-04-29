@@ -28,7 +28,6 @@ Cluster functions (from lowest to highest level):
         - `kmeans_cluster`
         - `find_best_info_for_ks`
 
-
 ## Metric Definitions:
 Given `N` vectors, ``{\bf x}, {\bf y}`` :
 - `L2`: The standard ``L_2`` norm: ``{\rm L2}({\bf x}, {\bf y}) = \sqrt{\sum_{i=1}^N (x_i - y_i)^2}``
@@ -131,7 +130,13 @@ raw_confusion_matrix(::AbstractVector{A},::AbstractVector{P}) where {A, P}
 confusion_matrix(::AbstractVector{A},::AbstractVector{P}) where {A, P}
 ```
 
-## Index
+```@docs
+find_cluster_map(::AbstractVector{V},::AbstractVector{A})  where {A, V}
+```
+
+```@docs
+predict(::Matrix{Float64},::Matrix{Float64},::Dict{Int, A}) where A
+```
 
 ```@index
 ```

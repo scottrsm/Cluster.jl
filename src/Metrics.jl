@@ -1,8 +1,6 @@
-module Metrics
-
-# Export metrics metrics: L_2, L_p, L_∞, Kullback-Leibler, Cosine, and Jaccard.
-# and fit metrics: raw_confusion_matrix, confusion_matrix
-export L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix
+module Metrics # Export metrics metrics: L_2, L_p, L_∞, Kullback-Leibler, Cosine, and Jaccard.
+# and fit metrics: raw_confusion_matrix, confusion_matrix, find_cluster_map
+export L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix, find_cluster_map, predict
 
 import LinearAlgebra as LA
 
@@ -335,6 +333,83 @@ function confusion_matrix(act::AbstractVector{A}, pred::AbstractVector{P}) where
     PM[1, 1] = "ACT\\PRED"
 
     return PM
+end
+
+
+"""
+	find_cluster_map(vals, attrs) 
+
+This function finds the best map between the alues `vals` and a target 
+attribute, `attrs`. Both, `vals` and `attrs` are *assumed* to have 
+discrete values.
+
+# Arguments
+- vals::AbstractVector{V}  -- The input values.
+- attrs::AbstractVector{A} -- The attribute values.
+
+# Return
+::Dict{V, A} -- The map between the values and the attributes.
+"""
+function find_cluster_map(vals::AbstractVector{V}, attrs::AbstractVector{T}) where {V, T}
+ 	uvals, uattrs, mat = raw_confusion_matrix(vals, attrs)
+	tvmap = Dict{T, V}()
+	idxsm = argmax(mat, dims=1)
+     idxs = @view idxsm[1, :]
+	for idx in idxs
+		tvmap[uattrs[idx[1]]] = uvals[idx[2]]
+	end
+	return tvmap
+end
+
+
+"""
+	predict(data, cl_centers, c_num_map; metric=L2]) 
+
+This function predicts the attributes from the map `c_num_map` based
+from the input data, `data`.
+
+# Arguments
+- data::Matrix{Float64}       -- The input data that is compatible with the data used to create the cluster map, `cl_centers`. See the `Input Contract` below for details.
+- cl_centers::Matrix{Float64} -- The geometric centers of the clusters.
+- c_num_map::Dict{Int, A}     -- The map from the cluster number to an attribute.
+
+# Optional Arguments
+- metric::Function -- The metric used to measure the distance between data and cluster centers.
+
+# Input Contract
+- |data[:, 1]| = |cl_centers[:, 1]|
+
+# Return
+::Vector{A} -- The vector of attribute predictions.
+"""
+function predict(data      ::Matrix{Float64}, 
+				 cl_centers::Matrix{Float64},
+				 c_num_map ::Dict{Int, A}   ;
+				 metric=L2 ::Function        ) where A
+	dM, dN = size(data)
+	cM, cN = size(cl_centers)
+
+	cM == dM || error("Data matrix, `data`, and `cl_centers` do not have the same number of rows.")
+
+	# Create the vector of attribute predictions.
+	preds = Vector{A}(undef, dN)
+
+	# Fill in the vector `preds`.
+	@inbounds for i in 1:dN
+		d = data[:, i]
+		min_dis = Inf
+		j_min = -1
+		for j in 1:cN
+			dis = metric(d, cl_centers[:, j])
+			if dis < min_dis
+				min_dis = dis
+				j_min = j
+			end
+		end
+		preds[i] = c_num_map[j_min]
+	end
+
+	return preds
 end
 
 

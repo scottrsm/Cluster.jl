@@ -107,10 +107,17 @@ end
 	d[2] = :versicolor
 	d[3] = :virginica
 
-	clus = map(x -> d[x], iris[!, :Cluster])
+	# Find the best mapping between the attribute, :Species, and the cluster numbers.
+	cmap = find_cluster_map(Symbol.(iris[:, :Species]), iris[:, :Cluster])
+	
+	# Given the Sepal width and height data from the IRIS data set, find the nearest
+	# cluster number, then use the map, cmap, to find the associated predicted 
+	# attribute, pattr = :Species.
+	pattr = predict(permutedims(Matrix(iris[:, [:SepalWidth, :SepalLength]])), xc, cmap)
 
-	# See how close our mapping of clusters to species compares with the actual species.
-    res = raw_confusion_matrix(specs, clus)
+	# See how close the predicted attributes, pattr,  compares with the 
+	# actual species, specs.
+    res = raw_confusion_matrix(specs, pattr)
 
     @test res[3] == CM
 
