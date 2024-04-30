@@ -28,6 +28,11 @@ Cluster functions (from lowest to highest level):
         - `kmeans_cluster`
         - `find_best_info_for_ks`
 
+- `find_cluster_map`: Takes clusters and a `discrete` attribute of the data set and maps cluster numbers to attribute values.
+
+- `confusion_matrix`: Computes the confusion matrix -- comparing actual against predicted values.
+
+
 ## Metric Definitions:
 Given `N` vectors, ``{\bf x}, {\bf y}`` :
 - `L2`: The standard ``L_2`` norm: ``{\rm L2}({\bf x}, {\bf y}) = \sqrt{\sum_{i=1}^N (x_i - y_i)^2}``
