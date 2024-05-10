@@ -1,9 +1,9 @@
 module Cluster
 
+import DataStructures as DS
+import Random as R
 import Statistics as S
 import StatsBase as SB
-import Random as R
-import DataStructures as DS
 
 include("Metrics.jl")
 using .Metrics: L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix, find_cluster_map, predict
