@@ -1,4 +1,3 @@
-using DataFrames
 import Random
 import RDatasets
 using Test

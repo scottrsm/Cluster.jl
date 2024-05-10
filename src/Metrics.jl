@@ -1,4 +1,6 @@
-module Metrics # Export metrics metrics: L_2, L_p, L_∞, Kullback-Leibler, Cosine, and Jaccard.
+module Metrics 
+
+# Export metrics metrics: L_2, L_p, L_∞, Kullback-Leibler, Cosine, and Jaccard.
 # and fit metrics: raw_confusion_matrix, confusion_matrix, find_cluster_map
 export L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix, find_cluster_map, predict
 
