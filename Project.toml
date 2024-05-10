@@ -1,7 +1,7 @@
 name = "Cluster"
 uuid = "1e9e0daf-e287-4c87-bb27-167a6bd94a1f"
-authors = ["Scott McIntire <scottrsm@gmail.com>"]
-version = "1.2.3"
+authors = ["Roland Scott McIntire"]
+version = "1.2.4"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -19,4 +19,8 @@ Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterTools = "35a29f4d-8980-5a13-9543-d66fff28ecb8"
 RDatasets = "ce6b1742-4840-55fa-b093-852dadbb1d8b"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
+
 
