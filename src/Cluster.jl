@@ -4,6 +4,7 @@ import DataStructures as DS
 import Random as R
 import Statistics as S
 import StatsBase as SB
+import LinearAlgebra as LA
 
 include("Metrics.jl")
 using .Metrics: L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix, find_cluster_map, predict
@@ -16,12 +17,12 @@ export kmeans_cluster, find_best_info_for_ks, find_best_cluster, find_cluster_ma
 export L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix
 
 """
-    kmeans_cluster(X, k=3[; dmetric, threshold, W, N, seed])
+    kmeans_cluster(X, k=3[; dmetric, threshold, W=nothing, N=1000, seed=0, check_W=false])
 
 Groups a set of points into `k` clusters based on the distance metric, `dmetric`.
 
 # Type Constraints
-- `T <: Real`
+- `T <: AbstractFloat`
 - `F <: Function`
 
 # Arguments
@@ -33,7 +34,8 @@ Groups a set of points into `k` clusters based on the distance metric, `dmetric`
 - `threshold::Float=1.0e-2`  : The relative error improvement threshold (using total variation)
 - `W::Union{Nothing, AbstractMatrix{T}}=nothing` : Optional `(nxn)` weight matrix for metric.
 - `N::Int=1000`    : The maximum number of iterations to try.
-- `seed::Int=0`    : If value > 0, create a random number generator to use for initial clustering.
+- `seed::Int=0`    : If `seed` > 0, create a random number generator to use for initial clustering.
+- `check_W::Bool=false`: If `check_W`, check that the matrix, `W`, is strictly positive definite.
     
 # Input Contract
 - ``W = {\\rm nothing} ∨ \\left( ({\\rm typeof}(W) = {\\rm Matrix}\\{T\\}) ∧ W \\in {\\boldsymbol S}_{++}^{n} \\right)``
@@ -57,16 +59,23 @@ function kmeans_cluster(X::Matrix{T},
                         threshold::Float64=1.0e-3,
                         W::Union{Nothing,AbstractMatrix{T}}=nothing,
                         N::Int=1000,
-                        seed::Int=0) where {T<:Real,F<:Function}
+                        seed::Int=0,
+						check_W::Bool=false) where {T<:AbstractFloat,F<:Function}
     # Get the size of the matrix.
     # `m` vectors of length `n`.
     n, m = size(X)
 
     # Check input contract: 
-    # NOTE: We only check that if W is a matrix it has the right shape.
-    #       We do not check for symmetry or strict positive definiteness.
+    # NOTE: We only check that if W is a matrix it has the right shape,
+	#       and that it is symmetric. If the parameter `check_W` is set to `true`,
+	#       then strict positive definiteness is also checked.
     if !((W === nothing) || ((typeof(W) <: AbstractMatrix{T}) && (size(W) == (n, n))))
         throw(DomainError(W, "The variable, `W`, which is not of type `Nothing` must be of type `Matrix{T}` with size(W) = $((n,n))"))
+	elseif (W !== nothing) && !isapprox(W, (W + pemutedims(W, (2,1))) ./ (2*one(T)), eps())
+       	throw(DomainError(W, "The variable, `W`, which is not of type `Nothing` must be a symmetric matrix."))
+	elseif check_W && (W !== nothing) 
+		evals, _ = LA.eigen(W)
+		evals[1] <= zero(T) && throw(DomainError(W, "The variable `W` is not strictly positive definite."))
     elseif !(1 <= k <= m)
         throw(DomainError(k, "The variable, `k`, is not in the range `[1, m]`."))
     elseif !(N > 0)
@@ -100,7 +109,7 @@ function kmeans_cluster(X::Matrix{T},
     # as this just a starting point for cluster centers.
     XCS = Array{T,2}(undef, n, k)
     @inbounds  for j in 1:k
-        @views XCS[:, j] = S.mean(X[:, idx[j]:idx[j+1]], dims=2)
+		@views XCS[:, j] = S.mean(X[:, idx[j]:idx[j+1]], dims=2)
     end
 
     # A map of points to centroids using indices: 1:m -> 1:k
@@ -183,13 +192,13 @@ end
 
 
 """
-    find_best_info_for_ks(X, kRng[; dmetric=L2, threshold=1.0e-3, W, N=1000, num_trials=100, seed=1])
+    find_best_info_for_ks(X, kRng[; dmetric=L2, threshold=1.0e-3, W=nothing, N=1000, num_trials=100, seed=1, check_W=false])
 
 Groups a set of `m` points (`n`-vectors) as an (nxm) matrix, `X`, into `k` clusters where `k` is in the range, `kRng`.
 The groupings are determined based on the distance metric, `dmetric`.
 
 # Type Constraints
-- `T <: Real`
+- `T <: AbstractFloat`
 - `F <: Function`
 
 # Arguments
@@ -203,6 +212,7 @@ The groupings are determined based on the distance metric, `dmetric`.
 - `N::Int=1000`            : The maximum number of kmeans_clustering iterations to try for each cluster number.
 - `num_trials::Int=300`    : The number of times to run kmeans_clustering for a given cluster number. 
 - `seed::Int=1`            : The random seed to use. (Used by kmeans_cluster to do initial clustering.)
+- `check_W::Bool=0`        : If `check_W` check that the matrix, `W`, is strictly positive definite.
     
 # Input Contract
 - ``W = {\\rm nothing} ∨ \\left( ({\\rm typeof}(W) = {\\rm Matrix}\\{T\\}) ∧ W \\in {\\boldsymbol S}_{++}^{n} \\right)``
@@ -224,7 +234,8 @@ function find_best_info_for_ks(X::Matrix{T},
                                W::Union{Nothing,AbstractMatrix{T}}=nothing,
                                N::Int=1000,
                                num_trials::Int=300,
-                               seed::Int=1) where {T<:Real,F<:Function}
+                               seed::Int=1,
+							   check_W::Bool=false) where {T<:AbstractFloat,F<:Function}
 
     tv_by_k   = DS.OrderedDict{Int,T}()
     cmap_by_k = DS.OrderedDict{Int,Vector{Int}}()
@@ -263,8 +274,9 @@ function find_best_info_for_ks(X::Matrix{T},
                                                       dmetric=dmetric    ,
                                                       threshold=threshold,
                                                       W=W                ,
-                                                      N=N                ,
-                                                      seed=(seed+cnt)     )
+													  N=N                ,
+													  seed=seed + cnt    ,
+													  check_W=check_W      )
             if tv < tv_by_k[k]
                 tv_by_k[k]   = tv
                 cmap_by_k[k] = cmap
@@ -281,7 +293,7 @@ end
 
 
 """
-    find_best_cluster(X, kRng[; dmetric=L2, threshold=1.0e-3, W, N=1000, num_trials=100, seed=1, verbose=false])
+    find_best_cluster(X, kRng[; dmetric=L2, threshold=1.0e-3, W=nothing, N=1000, num_trials=300, seed=1, check_W=false, verbose=false])
 
 Groups a set of points into the "best" number of clusters based on the distance metric, `dmetric`.
 It does this by examining the total variation between the points and the centroids for groups of `k`
@@ -293,7 +305,7 @@ are used and the centroids that were not used will be removed. In this case it m
 that the returned value of `k` is less that any value in the cluster range, `kRng`.
 
 # Type Constraints
-- `T <: Real`
+- `T <: AbstractFloat`
 - `F <: Function`
 
 # Arguments
@@ -307,6 +319,7 @@ that the returned value of `k` is less that any value in the cluster range, `kRn
 - `N::Int=1000`            : The maximum number of kmeans_clustering iterations to try for each cluster number.
 - `num_trials::Int=300`    : The number of times to run kmeans_clustering for a given cluster number. 
 - `seed::Int=1`            : The random seed to use. (Used by kmeans_cluster to do initial clustering.)
+- `check_W::Bool=false`    : If `check_W`, check that the matrix, `W`, is strictly positive definite.
 - `verbose::Bool=false`    : If `true`, print diagnostic information.
     
 # Input Contract
@@ -330,7 +343,8 @@ function find_best_cluster(X::Matrix{T},
                            N::Int=1000,
                            num_trials::Int=300,
                            seed::Int=1,
-                           verbose::Bool=false ) where {T<:Real, F<:Function}
+						   check_W::Bool=false,
+                           verbose::Bool=false ) where {T<:AbstractFloat, F<:Function}
 
     _, m = size(X)
 
@@ -353,7 +367,8 @@ function find_best_cluster(X::Matrix{T},
                                                W=W                  ,
                                                N=N                  ,
                                                num_trials=num_trials,
-                                               seed=seed             )
+                                               seed=seed            , 
+											   check_W=check_W       )
 
     # Get the dimension of the points.
     n, _ = size(X)
@@ -377,6 +392,7 @@ function find_best_cluster(X::Matrix{T},
     # Also, penalize the variation by multiplying by a fraction that
     # takes into account unused centroids.
     var_by_k_mod = tvv .* kfact .* (mv .+ unctv) ./ mv
+    var_by_kfact = tvv .* kfact 
 
     if verbose
         println("var_by_k     = $tvv")
@@ -400,15 +416,30 @@ function find_best_cluster(X::Matrix{T},
             v = min(v, monvar)
             mono_var_by_k_mod[l] =  v
             if v < monvar 
-                last_min_idx = l 
+				min_idx[l] = last_min_idx = l 
                 monvar  = v
-                min_idx[l] = l
             end
         end
-        kbest = argmin(diff(mono_var_by_k_mod) ./ mono_var_by_k_mod[2:end] ./ (1.0 .+ diff(min_idx))) + kRng.start 
+
+		# Adjusted variation by cluster number.
+		kfmod = diff(mono_var_by_k_mod) ./ mono_var_by_k_mod[2:end] ./ (1.0 .+ diff(min_idx))
+
+		# Condition that may eliminate weak improvements.
+		kcond = (diff(mono_var_by_k_mod) ./ mono_var_by_k_mod[2:end] ./ (1.0 .+ diff(min_idx))) .< -0.001
+
+		# The first two changes are special, we eliminate gaving only one 
+		# group if the second change is substantial.
+		if kfmod[1] > 2.0 * kfmod[2]
+			kcond[1] = false
+		end
+		if sum(kcond) == 0
+			kbest = kRng.start
+		else	
+			kbest = argmin(kcond .* kfmod) + kRng.start 
+		end
         if verbose
             println("mono_var_by_mod: $mono_var_by_k_mod")
-            println("mono_var_series: $(diff(mono_var_by_k_mod) ./ mono_var_by_k_mod[2:end] ./ (1.0 .+ diff(min_idx)))")
+			println("mono_var_series: $kfmod")
         end
     end
         
@@ -420,6 +451,7 @@ function find_best_cluster(X::Matrix{T},
         return (kbest, cmap[kbest], xc[kbest], tv[kbest])
     end
 
+	println("XXXX: After the first return")
     # Else we need to remove unused centroids and re-index the used centroids.
     viable_centroid_idxs = setdiff(1:kbest, unct[kbest])
     reindex_centroids = DS.OrderedDict{Int, Int}()
