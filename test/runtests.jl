@@ -53,7 +53,7 @@ end
 
 
 @testset "Cluster (Test find_best_cluster: T1)  " begin
-    kbest, mp, xc, ds = find_best_cluster(M, 2:15                    ;
+    kbest, mp, xc, ds = find_best_cluster(M, 1:15                    ;
 										  seed = 1                   ,
                                           num_trials = NUM_TRIALS_T1 , 
                                           N          = NUM_ITERATIONS, 
@@ -76,7 +76,7 @@ end
     #--------------------------
     #----- Default metric, L2.
     #--------------------------
-    kbest, mp, xc, ds = find_best_cluster(MI, 2:7                     ; 
+    kbest, mp, xc, ds = find_best_cluster(MI, 1:7                     ; 
                                           dmetric=L2                  , 
 										  seed = 1                    ,
                                           num_trials = NUM_TRIALS_IRIS, 
@@ -89,7 +89,7 @@ end
            0 38 12 ;
            1 15 34  ]
 
-    best_var = 62.69987288875754
+    best_var = 62.80790381460394
 
     @test size(xc)   == (2, kbest)
     @test kbest      == 3
@@ -124,7 +124,7 @@ end
     #----- L1 metric.
     #--------------------------
     L1_metric = (x,y;kwargs...) -> LP(x,y,1;kwargs...) 
-    kbest, mp, xc, ds = find_best_cluster(MI, 2:7                     ; 
+    kbest, mp, xc, ds = find_best_cluster(MI, 1:7                     ; 
 										  seed = 1                    ,
                                           dmetric    = L1_metric      ,
                                           num_trials = NUM_TRIALS_IRIS, 
@@ -133,7 +133,7 @@ end
 
     C = [3.3109090909090915 2.753846153846154 3.0999999999999996; 
          4.996363636363635 5.903846153846152 6.8530488372093022  ]
-    best_var = 81.04100016262802
+    best_var = 80.8079287556415  
 
  
     @test size(xc)   == (2, kbest)
@@ -142,10 +142,10 @@ end
     @test ds ≈ best_var   rtol=TOL
 
 
-    #--------------------------
+    #--------------------------------
     #----- Kullback-Leibler metric.
-    #--------------------------
-    kbest, mp, xc, ds = find_best_cluster(MI, 2:7                     ; 
+    #--------------------------------
+    kbest, mp, xc, ds = find_best_cluster(MI, 1:7                     ; 
 										  seed = 1                    ,
                                           dmetric    = KL             , 
                                           num_trials = NUM_TRIALS_IRIS, 
@@ -154,7 +154,7 @@ end
 
     C = [3.4510204081632656 2.672222222222222 3.089361702127659; 
          5.016326530612244 5.757407407407408 6.804255319148933  ]
-    best_var = 8.310219089521219
+    best_var = 8.309019010482672
 
     @test size(xc)   == (2, kbest)
     @test kbest      == 3
@@ -165,7 +165,7 @@ end
     #--------------------------
     #----- Cosine metric.
     #--------------------------
-    kbest, mp, xc, ds = find_best_cluster(MI, 2:7                     ; 
+    kbest, mp, xc, ds = find_best_cluster(MI, 1:7                     ; 
 										  seed = 1                    ,
                                           dmetric    = CD             , 
                                           num_trials = NUM_TRIALS_IRIS, 
@@ -174,10 +174,12 @@ end
 
     C = [3.4510204081632656 2.985714285714286 2.717777777777777; 
          5.016326530612244 6.058928571428571 6.4755555555555535 ]
-    best_var = 0.05437932001281265
+	C = [3.44118  2.8596;
+		 5.04314  6.25556 ]
+    best_var = 0.10575262811580677
 
     @test size(xc)   == (2, kbest)
-    @test kbest      == 3
+    @test kbest      == 2
     @test xc ≈ C          rtol=TOL
     @test ds ≈ best_var   rtol=TOL
 
@@ -185,7 +187,7 @@ end
     #--------------------------
     #----- Jaccard metric.
     #--------------------------
-    kbest, mp, xc, ds = find_best_cluster(MI, 2:7                     ; 
+    kbest, mp, xc, ds = find_best_cluster(MI, 1:7                     ; 
 										  seed = 1                    ,
                                           dmetric    = JD             , 
                                           num_trials = NUM_TRIALS_IRIS, 
