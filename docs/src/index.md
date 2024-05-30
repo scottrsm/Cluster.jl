@@ -88,20 +88,21 @@ lie in some lower dimensional hyperplane in the ambient space.
 ## Cluster Functions
 
 ```@docs
-kmeans_cluster(::Matrix{T}, k::Int = 3; dmetric::F = L2, threshold::Float64 = 1.0e-3, W::Union{Nothing, AbstractMatrix{T}} = nothing, N::Int = 1000, :seed::Int=0, check_W::Bool=false) where {T <: AbstractFloat, F <: Function}
+kmeans_cluster(::Matrix{T}, k::Int = 3; dmetric::F = L2, threshold::Float64 = 1.0e-3, 
+    W::Union{Nothing, AbstractMatrix{T}} = nothing, N::Int = 1000, 
+    seed::Int=0, check_W::Bool=false) where {T <: AbstractFloat, F <: Function}
 ```
 
 ```@docs
 find_best_info_for_ks(X::Matrix{T}, kRng::UnitRange{Int}; dmetric::F=L2, threshold::Float64=1.0e-3, 
     W::Union{Nothing, AbstractMatrix{T}}=nothing, N::Int=1000, 
-    num_trials::Int=300, seed::Int=1, check_W::Bool=false) where{T <: AbstractFloat, F <: Function}
+    num_trials::Int=300, seed::Int=1) where{T <: AbstractFloat, F <: Function}
 ```
 
 ```@docs
 find_best_cluster(X::Matrix{T}, kRng::UnitRange{Int}; dmetric::F=L2, 
     threshold::Float64=1.0e-3, W::Union{Nothing, AbstractMatrix{T}}=nothing, 
-    N::Int=1000, num_trials::Int=300, seed::Int=1, verbose::Bool=false, 
-    check_W::Bool=false) where{T <: AbstractFloat, F <: Function}
+    N::Int=1000, num_trials::Int=300, seed::Int=1, verbose::Bool=false) where{T <: AbstractFloat, F <: Function}
 ```
 
 ## Metric Functions

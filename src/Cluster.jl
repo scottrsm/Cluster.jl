@@ -5,6 +5,7 @@ import Random as R
 import Statistics as S
 import StatsBase as SB
 import LinearAlgebra as LA
+import Base.Threads as TH
 
 include("Metrics.jl")
 using .Metrics: L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix, find_cluster_map, predict
@@ -15,6 +16,10 @@ export kmeans_cluster, find_best_info_for_ks, find_best_cluster, find_cluster_ma
 
 # Export the metric and fit metric functions: 
 export L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix
+
+
+const REL_VAR_THRESHOLD = -0.001
+const REL_VAR_INIT_THRESHOLD_DROP_FACTOR = 2.0
 
 """
     kmeans_cluster(X, k=3[; dmetric, threshold, W=nothing, N=1000, seed=0, check_W=false])
@@ -74,6 +79,9 @@ function kmeans_cluster(X::Matrix{T},
 	elseif (W !== nothing) && !isapprox(W, (W + pemutedims(W, (2,1))) ./ (2*one(T)), eps())
        	throw(DomainError(W, "The variable, `W`, which is not of type `Nothing` must be a symmetric matrix."))
 	elseif check_W && (W !== nothing) 
+		if !isapprox(W, (W + permutedims(W, (2,1))) ./ (2 * one(T)), eps())
+       		throw(DomainError(W, "The variable, `W` is not a symmetric matrix."))
+		end
 		evals, _ = LA.eigen(W)
 		evals[1] <= zero(T) && throw(DomainError(W, "The variable `W` is not strictly positive definite."))
     elseif !(1 <= k <= m)
@@ -146,10 +154,10 @@ function kmeans_cluster(X::Matrix{T},
             @simd for j in 1:k
                 xcsv = @view XCS[:, j]
                 cv = adj_metric(xv, xcsv)
-                if cv < cv_min
-                    cv_min    = cv
-                    c_closest = j
-                end
+            	if cv < cv_min
+					cv_min    = cv
+					c_closest = j
+               	end
             end
             tv     += cv_min
             cmap[i] = c_closest
@@ -192,7 +200,7 @@ end
 
 
 """
-    find_best_info_for_ks(X, kRng[; dmetric=L2, threshold=1.0e-3, W=nothing, N=1000, num_trials=100, seed=1, check_W=false])
+    find_best_info_for_ks(X, kRng[; dmetric=L2, threshold=1.0e-3, W=nothing, N=1000, num_trials=100, seed=1)
 
 Groups a set of `m` points (`n`-vectors) as an (nxm) matrix, `X`, into `k` clusters where `k` is in the range, `kRng`.
 The groupings are determined based on the distance metric, `dmetric`.
@@ -212,7 +220,6 @@ The groupings are determined based on the distance metric, `dmetric`.
 - `N::Int=1000`            : The maximum number of kmeans_clustering iterations to try for each cluster number.
 - `num_trials::Int=300`    : The number of times to run kmeans_clustering for a given cluster number. 
 - `seed::Int=1`            : The random seed to use. (Used by kmeans_cluster to do initial clustering.)
-- `check_W::Bool=0`        : If `check_W` check that the matrix, `W`, is strictly positive definite.
     
 # Input Contract
 - ``W = {\\rm nothing} ∨ \\left( ({\\rm typeof}(W) = {\\rm Matrix}\\{T\\}) ∧ W \\in {\\boldsymbol S}_{++}^{n} \\right)``
@@ -234,8 +241,7 @@ function find_best_info_for_ks(X::Matrix{T},
                                W::Union{Nothing,AbstractMatrix{T}}=nothing,
                                N::Int=1000,
                                num_trials::Int=300,
-                               seed::Int=1,
-							   check_W::Bool=false) where {T<:AbstractFloat,F<:Function}
+							   seed::Int=1) where {T<:AbstractFloat,F<:Function}
 
     tv_by_k   = DS.OrderedDict{Int,T}()
     cmap_by_k = DS.OrderedDict{Int,Vector{Int}}()
@@ -266,10 +272,12 @@ function find_best_info_for_ks(X::Matrix{T},
     #  - The list of cluster indices that were not used.
     #  - The number of iterations used to complete kmeans_cluster.
     #  - Did kmeans_cluster converge before max iterates used? 
-    @inbounds for k in kRng
+	lk = ReentrantLock()
+    for k in kRng
         tv_by_k[k] = tmax
-        for _ in 1:num_trials
+        TH.@threads for i in 1:num_trials
             cnt += 1
+			check_W = i == 1 ? true : false # We only need to check W once.
             cmap, XC, tv, ucnt, N, _ = kmeans_cluster(X, k               ;
                                                       dmetric=dmetric    ,
                                                       threshold=threshold,
@@ -277,12 +285,16 @@ function find_best_info_for_ks(X::Matrix{T},
 													  N=N                ,
 													  seed=seed + cnt    ,
 													  check_W=check_W      )
-            if tv < tv_by_k[k]
-                tv_by_k[k]   = tv
-                cmap_by_k[k] = cmap
-                XC_by_k[k]   = XC
-                ucnt_by_k[k] = ucnt
-            end
+			begin
+				lock(lk)
+            	if tv < tv_by_k[k]
+                	tv_by_k[k]   = tv
+                	cmap_by_k[k] = cmap
+                	XC_by_k[k]   = XC
+                	ucnt_by_k[k] = ucnt
+            	end
+				unlock(lk)
+			end
         end
     end
 
@@ -293,7 +305,7 @@ end
 
 
 """
-    find_best_cluster(X, kRng[; dmetric=L2, threshold=1.0e-3, W=nothing, N=1000, num_trials=300, seed=1, check_W=false, verbose=false])
+    find_best_cluster(X, kRng[; dmetric=L2, threshold=1.0e-3, W=nothing, N=1000, num_trials=300, seed=1, verbose=false])
 
 Groups a set of points into the "best" number of clusters based on the distance metric, `dmetric`.
 It does this by examining the total variation between the points and the centroids for groups of `k`
@@ -319,7 +331,6 @@ that the returned value of `k` is less that any value in the cluster range, `kRn
 - `N::Int=1000`            : The maximum number of kmeans_clustering iterations to try for each cluster number.
 - `num_trials::Int=300`    : The number of times to run kmeans_clustering for a given cluster number. 
 - `seed::Int=1`            : The random seed to use. (Used by kmeans_cluster to do initial clustering.)
-- `check_W::Bool=false`    : If `check_W`, check that the matrix, `W`, is strictly positive definite.
 - `verbose::Bool=false`    : If `true`, print diagnostic information.
     
 # Input Contract
@@ -343,7 +354,6 @@ function find_best_cluster(X::Matrix{T},
                            N::Int=1000,
                            num_trials::Int=300,
                            seed::Int=1,
-						   check_W::Bool=false,
                            verbose::Bool=false ) where {T<:AbstractFloat, F<:Function}
 
     _, m = size(X)
@@ -367,8 +377,7 @@ function find_best_cluster(X::Matrix{T},
                                                W=W                  ,
                                                N=N                  ,
                                                num_trials=num_trials,
-                                               seed=seed            , 
-											   check_W=check_W       )
+											   seed=seed             )
 
     # Get the dimension of the points.
     n, _ = size(X)
@@ -425,11 +434,11 @@ function find_best_cluster(X::Matrix{T},
 		kfmod = diff(mono_var_by_k_mod) ./ mono_var_by_k_mod[2:end] ./ (1.0 .+ diff(min_idx))
 
 		# Condition that may eliminate weak improvements.
-		kcond = (diff(mono_var_by_k_mod) ./ mono_var_by_k_mod[2:end] ./ (1.0 .+ diff(min_idx))) .< -0.001
+		kcond = (diff(mono_var_by_k_mod) ./ mono_var_by_k_mod[2:end] ./ (1.0 .+ diff(min_idx))) .< Cluster.REL_VAR_THRESHOLD
 
 		# The first two changes are special, we eliminate gaving only one 
 		# group if the second change is substantial.
-		if kfmod[1] > 2.0 * kfmod[2]
+		if kfmod[1] > Cluster.REL_VAR_INIT_THRESHOLD_DROP_FACTOR * kfmod[2]
 			kcond[1] = false
 		end
 		if sum(kcond) == 0
@@ -451,7 +460,6 @@ function find_best_cluster(X::Matrix{T},
         return (kbest, cmap[kbest], xc[kbest], tv[kbest])
     end
 
-	println("XXXX: After the first return")
     # Else we need to remove unused centroids and re-index the used centroids.
     viable_centroid_idxs = setdiff(1:kbest, unct[kbest])
     reindex_centroids = DS.OrderedDict{Int, Int}()
