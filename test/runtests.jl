@@ -109,9 +109,10 @@ end
 	# Find the best mapping between the attribute, :Species, and the cluster numbers.
 	cmap = find_cluster_map(Symbol.(iris[:, :Species]), iris[:, :Cluster])
 	
-	# Given the Sepal width and height data from the IRIS data set, find the nearest
-	# cluster number, then use the map, cmap, to find the associated predicted 
-	# attribute, pattr = :Species.
+	#= Given the Sepal width and height data from the IRIS data set, find the nearest
+	   cluster number, then use the map, cmap, to find the associated predicted 
+	   attribute, pattr = :Species.
+	=#
 	pattr = predict(permutedims(Matrix(iris[:, [:SepalWidth, :SepalLength]])), xc, cmap)
 
 	# See how close the predicted attributes, pattr,  compares with the 

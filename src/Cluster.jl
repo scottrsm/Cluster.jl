@@ -9,9 +9,10 @@ import Base.Threads as TH
 
 include("Metrics.jl")
 using .Metrics: L2, LP, LI, KL, CD, JD, raw_confusion_matrix, confusion_matrix, find_cluster_map, predict
-# Export the K-means functions: 
-# Base k-means function; K-means function to get information over a range of clusters;
-# and function that finds the best K-means cluster.
+#= Export the K-means functions: 
+   Base k-means function; K-means function to get information over a range of clusters;
+   and function that finds the best K-means cluster.
+=#
 export kmeans_cluster, find_best_info_for_ks, find_best_cluster, find_cluster_map, predict
 
 # Export the metric and fit metric functions: 
@@ -70,10 +71,11 @@ function kmeans_cluster(X::Matrix{T},
     # `m` vectors of length `n`.
     n, m = size(X)
 
-    # Check input contract: 
-    # NOTE: We only check that if W is a matrix it has the right shape,
-	#       and that it is symmetric. If the parameter `check_W` is set to `true`,
-	#       then strict positive definiteness is also checked.
+    #= Check input contract: 
+       NOTE: We only check that if W is a matrix it has the right shape,
+	         and that it is symmetric. If the parameter `check_W` is set to `true`,
+	         then strict positive definiteness is also checked.
+    =#
     if !((W === nothing) || ((typeof(W) <: AbstractMatrix{T}) && (size(W) == (n, n))))
         throw(DomainError(W, "The variable, `W`, which is not of type `Nothing` must be of type `Matrix{T}` with size(W) = $((n,n))"))
 	elseif (W !== nothing) && !isapprox(W, (W + pemutedims(W, (2,1))) ./ (2*one(T)), eps())
@@ -112,9 +114,10 @@ function kmeans_cluster(X::Matrix{T},
     idx = 1 .+ (unique(div.(1:m, ck)) * ck)
     idx[end] = min(idx[end], m)
 
-    # Average the vectors in each group to form the group centers.
-    # The averaging below double counts some points -- not important
-    # as this just a starting point for cluster centers.
+    #= Average the vectors in each group to form the group centers.
+       The averaging below double counts some points -- not important
+       as this just a starting point for cluster centers.
+	=#
     XCS = Array{T,2}(undef, n, k)
     @inbounds  for j in 1:k
 		@views XCS[:, j] = S.mean(X[:, idx[j]:idx[j+1]], dims=2)
@@ -137,17 +140,19 @@ function kmeans_cluster(X::Matrix{T},
     end
 
 
-    # Now loop until convergence: abs(tv - tv_last) is small -- or max iterations (N): 
-    # - Map the `m` values of (`n`-vectors) from X into the nearest cluster.
-    # - Form new centers by averaging associated points.
+    #= Now loop until convergence: abs(tv - tv_last) is small -- or max iterations (N): 
+       - Map the `m` values of (`n`-vectors) from X into the nearest cluster.
+       - Form new centers by averaging associated points.
+	=#
     @inbounds for l in 1:N
         tv = zero(T) # Total variation (sum of distances) of all points to their centers.
         cv = zero(T) # Distance of one point with one center. 
         c_closest = -1 # Closest center (by index) of a point.
 
-        # Loop over the `m` points.
-        # For each point, find the nearest cluster (by centroid index).
-        # Collect the variation.
+        #= Loop over the `m` points.
+           For each point, find the nearest cluster (by centroid index).
+           Collect the variation.
+		=#
         for i in 1:m
             cv_min = tmax
             xv = @view X[:, i]
@@ -163,14 +168,15 @@ function kmeans_cluster(X::Matrix{T},
             cmap[i] = c_closest
         end
 
-        # IF: No appreciable change based on relative error, return.
-        # 1. The mapping dictionary:
-        #     (Original point index -> centroid index)
-        # 2. The Centroids.
-        # 3. The overall total distance from points and their centroids.
-        # 4. Unused centroid indices.
-        # 5. Number of runs to completion.
-        # 6. Did algorithm converge.
+        #= IF: No appreciable change based on relative error, return.
+           1. The mapping dictionary:
+              (Original point index -> centroid index)
+           2. The Centroids.
+           3. The overall total distance from points and their centroids.
+           4. Unused centroid indices.
+           5. Number of runs to completion.
+           6. Did algorithm converge.
+		=#
         if abs(tv_last - tv) / max(tv, tv_last) < threshold
             return (cmap, XCS, tv, setdiff(1:k, unique(values(cmap))), l, true)
         end
@@ -263,15 +269,16 @@ function find_best_info_for_ks(X::Matrix{T},
                of points in the data matrix `X`."""))
     end
 
-    # Loop over the cluster range.
-    # Find best cluster for each cluster size.
-    # For each cluster size store the following data:
-    #  - The mapping of points (index) to cluster points (index).
-    #  - The cluster points.
-    #  - Total variation.
-    #  - The list of cluster indices that were not used.
-    #  - The number of iterations used to complete kmeans_cluster.
-    #  - Did kmeans_cluster converge before max iterates used? 
+    #= Loop over the cluster range.
+       Find best cluster for each cluster size.
+       For each cluster size store the following data:
+        - The mapping of points (index) to cluster points (index).
+        - The cluster points.
+        - Total variation.
+        - The list of cluster indices that were not used.
+        - The number of iterations used to complete kmeans_cluster.
+        - Did kmeans_cluster converge before max iterates used? 
+	=#
 	lk = ReentrantLock()
     for k in kRng
         tv_by_k[k] = tmax
@@ -395,11 +402,12 @@ function find_best_cluster(X::Matrix{T},
     # Get the number of unused cluster nodes for each cluster number.
     unctv = length.(collect(values(unct)))
 
-    # Adjust the total variation, `tvv`, by `kfact`.
-    # The `kfact` values adjust for the natural tendency for more clusters
-    # to give less total variation.
-    # Also, penalize the variation by multiplying by a fraction that
-    # takes into account unused centroids.
+    #= Adjust the total variation, `tvv`, by `kfact`.
+       The `kfact` values adjust for the natural tendency for more clusters
+       to give less total variation.
+       Also, penalize the variation by multiplying by a fraction that
+       takes into account unused centroids.
+	=#
     var_by_k_mod = tvv .* kfact .* (mv .+ unctv) ./ mv
     var_by_kfact = tvv .* kfact 
 

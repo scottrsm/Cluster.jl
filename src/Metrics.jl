@@ -280,9 +280,10 @@ function raw_confusion_matrix(act::AbstractVector{A}, pred::AbstractVector{P}) w
         dp[p_vals[i]] = i
     end
 
-    # Fill in the non-zero entries of the confusion matrix
-    # as the number of counts for each pair of (actual, predicted) pairings
-    # as encoded by the actual and predicted index values.
+    #= Fill in the non-zero entries of the confusion matrix
+       as the number of counts for each pair of (actual, predicted) pairings
+       as encoded by the actual and predicted index values.
+	=#
     @inbounds for i in 1:N
         CM[da[act[i]], dp[pred[i]]] += 1
     end
