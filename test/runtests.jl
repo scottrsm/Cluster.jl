@@ -4,9 +4,10 @@ using Test
 
 using Cluster
 
-#---------------------------------------------------------
-#------------ DATA PREP ----------------------------------
-#---------------------------------------------------------
+#=-------------------------------------------------------
+------------ DATA PREP ----------------------------------
+---------------------------------------------------------
+=#
 
 # Set random seed.
 Random.seed!(1)
@@ -73,9 +74,10 @@ end
 # Try clustering with metrics: L2 (default), L1, KL (Kullback-Liebler).
 @testset "Cluster (Test find_best_cluster: IRIS)" begin
 
-    #--------------------------
-    #----- Default metric, L2.
-    #--------------------------
+    #=------------------------
+    ----- Default metric, L2.
+    --------------------------
+	=#
     kbest, mp, xc, ds = find_best_cluster(MI, 1:7                     ; 
                                           dmetric=L2                  , 
 										  seed = 1                    ,
@@ -121,9 +123,10 @@ end
 
     @test res[3] == CM
 
-    #--------------------------
-    #----- L1 metric.
-    #--------------------------
+    #=------------------------
+    ----- L1 metric.
+    --------------------------
+	=#
     L1_metric = (x,y;kwargs...) -> LP(x,y,1;kwargs...) 
     kbest, mp, xc, ds = find_best_cluster(MI, 1:7                     ; 
 										  seed = 1                    ,
@@ -143,9 +146,10 @@ end
     @test ds ≈ best_var   rtol=TOL
 
 
-    #--------------------------------
-    #----- Kullback-Leibler metric.
-    #--------------------------------
+    #=------------------------------
+    ----- Kullback-Leibler metric.
+    --------------------------------
+	=#
     kbest, mp, xc, ds = find_best_cluster(MI, 1:7                     ; 
 										  seed = 1                    ,
                                           dmetric    = KL             , 
@@ -163,9 +167,10 @@ end
     @test ds ≈ best_var   rtol=TOL
 
 
-    #--------------------------
-    #----- Cosine metric.
-    #--------------------------
+    #=------------------------
+    ----- Cosine metric.
+    --------------------------
+	=#
     kbest, mp, xc, ds = find_best_cluster(MI, 1:7                     ; 
 										  seed = 1                    ,
                                           dmetric    = CD             , 
@@ -185,9 +190,10 @@ end
     @test ds ≈ best_var   rtol=TOL
 
 
-    #--------------------------
-    #----- Jaccard metric.
-    #--------------------------
+    #=------------------------
+    ----- Jaccard metric.
+    --------------------------
+	=#
     kbest, mp, xc, ds = find_best_cluster(MI, 1:7                     ; 
 										  seed = 1                    ,
                                           dmetric    = JD             , 
