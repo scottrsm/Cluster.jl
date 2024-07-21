@@ -1,6 +1,6 @@
 module Cluster
 
-import DataStructures as DS
+import OrderedCollections as OC
 import Random as R
 import Statistics as S
 import StatsBase as SB
@@ -249,10 +249,10 @@ function find_best_info_for_ks(X::Matrix{T},
                                num_trials::Int=300,
 							   seed::Int=1) where {T<:AbstractFloat,F<:Function}
 
-    tv_by_k   = DS.OrderedDict{Int,T}()
-    cmap_by_k = DS.OrderedDict{Int,Vector{Int}}()
-    XC_by_k   = DS.OrderedDict{Int,Matrix{T}}()
-    ucnt_by_k = DS.OrderedDict{Int,Vector{Int}}()
+    tv_by_k   = OC.OrderedDict{Int,T}()
+    cmap_by_k = OC.OrderedDict{Int,Vector{Int}}()
+    XC_by_k   = OC.OrderedDict{Int,Matrix{T}}()
+    ucnt_by_k = OC.OrderedDict{Int,Vector{Int}}()
     tmax = typemax(T)
     cnt = 0
     _, m = size(X)
@@ -470,8 +470,8 @@ function find_best_cluster(X::Matrix{T},
 
     # Else we need to remove unused centroids and re-index the used centroids.
     viable_centroid_idxs = setdiff(1:kbest, unct[kbest])
-    reindex_centroids = DS.OrderedDict{Int, Int}()
-    bcmap = DS.OrderedDict{Int, Int}()
+    reindex_centroids = OC.OrderedDict{Int, Int}()
+    bcmap = OC.OrderedDict{Int, Int}()
     cnt = 1
     for i in viable_centroid_idxs
         reindex_centroids[i] = cnt
