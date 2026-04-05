@@ -78,8 +78,6 @@ function kmeans_cluster(X::Matrix{T},
     =#
     if !((W === nothing) || ((typeof(W) <: AbstractMatrix{T}) && (size(W) == (n, n))))
         throw(DomainError(W, "The variable, `W`, which is not of type `Nothing` must be of type `Matrix{T}` with size(W) = $((n,n))"))
-	elseif (W !== nothing) && !isapprox(W, (W + pemutedims(W, (2,1))) ./ (2*one(T)), eps())
-       	throw(DomainError(W, "The variable, `W`, which is not of type `Nothing` must be a symmetric matrix."))
 	elseif check_W && (W !== nothing) 
 		if !isapprox(W, (W + permutedims(W, (2,1))) ./ (2 * one(T)), eps())
        		throw(DomainError(W, "The variable, `W` is not a symmetric matrix."))
@@ -283,14 +281,20 @@ function find_best_info_for_ks(X::Matrix{T},
     for k in kRng
         tv_by_k[k] = tmax
         TH.@threads for i in 1:num_trials
-            cnt += 1
 			check_W = i == 1 ? true : false # We only need to check W once.
+			local_cnt = 0
+			begin
+				lock(lk)
+				cnt += 1
+				local_cnt = cnt
+				unlock(lk)
+			end
             cmap, XC, tv, ucnt, N, _ = kmeans_cluster(X, k               ;
                                                       dmetric=dmetric    ,
                                                       threshold=threshold,
                                                       W=W                ,
 													  N=N                ,
-													  seed=seed + cnt    ,
+													  seed=seed + local_cnt,
 													  check_W=check_W      )
 			begin
 				lock(lk)

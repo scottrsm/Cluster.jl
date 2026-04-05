@@ -24,7 +24,7 @@ is the use of weighted metrics in some instances.
 - `y::AbstractVector{T}` : A numeric vector.
 
 # Keyword Arguments
-- `C::Union{Nothing, Matrix{T}` : Optional Weight matrix.
+- `M::Union{Nothing, Matrix{T}}` : Optional Weight matrix.
 
 # Input Contract (Low level function -- Input contract not checked)
 - ``|{\\bf x}| = |{\\bf y}|``
@@ -93,7 +93,7 @@ Computes the ``L_\\infty`` distance between two vectors.
 function LI(x::AbstractVector{T},
             y::AbstractVector{T} ) where {T <: Real}
 
-    return max.(abs.(x .- y))
+    return maximum(abs.(x .- y))
 end
 
 
@@ -120,7 +120,7 @@ function JD(x::AbstractVector{T},
     d = length(symdiff(x,y))
     u = length(union(x,y)) 
 
-    return length(u) == 0 ? 0.0 : d / u
+    return u == 0 ? 0.0 : d / u
 end
 
 
@@ -388,7 +388,7 @@ from the input data, `data`.
 function predict(data      ::Matrix{Float64}, 
 				 cl_centers::Matrix{Float64},
 				 c_num_map ::Dict{Int, A}   ;
-				 metric=L2 ::Function        ) where A
+				 metric    ::Function=L2     ) where A
 	dM, dN = size(data)
 	cM, cN = size(cl_centers)
 
