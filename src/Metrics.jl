@@ -39,7 +39,7 @@ function L2(x::AbstractVector{T},
 
     d = x .- y
     if M === nothing
-        return LA.norm2(d)
+        return LA.norm(d)
     else
         return sqrt(LA.dot(d, M, d))
     end
@@ -116,7 +116,7 @@ If both `x` and `y` are vectors of zero length, a distance of ``0`` is returned.
 `Jaccard` distance measure between the two vectors.
 """
 function JD(x::AbstractVector{T},
-            y::AbstractVector{T} ) where {T <: Real}
+            y::AbstractVector{T} ) where {T}
     d = length(symdiff(x,y))
     u = length(union(x,y)) 
 
@@ -151,10 +151,13 @@ function KL(x::AbstractVector{T},
             y::AbstractVector{T} ) where {T <: Real}
 
     z = zero(T)
-    d1 = map((a, b) -> a == z ? z : a * log(a / b), x, y)
-    d2 = map((a, b) -> b == z ? z : b * log(b / a), x, y)
+    s = zero(float(T))
+    for (a, b) in zip(x, y)
+        a != z && (s += a * log(a / b))
+        b != z && (s += b * log(b / a))
+    end
 
-    return sum(d1 .+ d2)
+    return s
 end
 
 
@@ -188,17 +191,14 @@ function CD(x::AbstractVector{T},
     o = one(T)
     tol = T(TOL)
 
-    if all(abs.(x .- y) / (2.0 .* (abs.(x) .+ abs.(y))) .< tol)
-        return o
-    elseif all(abs.(x) .< tol)
-        return o
-    elseif all(abs.(y) .< tol)
+    # A zero vector has no direction: treat it as maximally distant.
+    if all(v -> abs(v) < tol, x) || all(v -> abs(v) < tol, y)
         return o
     elseif M === nothing
-        return o - LA.dot(x, y) / sqrt(LA.dot(x, x) * LA.dot(y, y))
+        return max(z, o - LA.dot(x, y) / sqrt(LA.dot(x, x) * LA.dot(y, y)))
     end
 
-    return o - LA.dot(x, M, y) / sqrt(LA.dot(x, M, x) * LA.dot(y, M, y))
+    return max(z, o - LA.dot(x, M, y) / sqrt(LA.dot(x, M, x) * LA.dot(y, M, y)))
 end
 
 
@@ -351,22 +351,22 @@ discrete values.
 - attrs::AbstractVector{A} -- The attribute values.
 
 # Return
-::Dict{V, A} -- The map between the values and the attributes.
+::Dict{A, V} -- The map from each attribute value to the value it most often co-occurs with.
 """
 function find_cluster_map(vals::AbstractVector{V}, attrs::AbstractVector{T}) where {V, T}
  	uvals, uattrs, mat = raw_confusion_matrix(vals, attrs)
 	tvmap = Dict{T, V}()
+	# For each attribute (column), the row (value) with the largest count.
 	idxsm = argmax(mat, dims=1)
-     idxs = @view idxsm[1, :]
-	for idx in idxs
-		tvmap[uattrs[idx[1]]] = uvals[idx[2]]
+	for idx in idxsm
+		tvmap[uattrs[idx[2]]] = uvals[idx[1]]
 	end
 	return tvmap
 end
 
 
 """
-	predict(data, cl_centers, c_num_map; metric=L2]) 
+	predict(data, cl_centers, c_num_map[; metric=L2]) 
 
 This function predicts the attributes from the map `c_num_map` based
 from the input data, `data`.
@@ -392,18 +392,18 @@ function predict(data      ::Matrix{Float64},
 	dM, dN = size(data)
 	cM, cN = size(cl_centers)
 
-	cM == dM || error("Data matrix, `data`, and `cl_centers` do not have the same number of rows.")
+	cM == dM || throw(DimensionMismatch("Data matrix, `data`, and `cl_centers` do not have the same number of rows."))
 
 	# Create the vector of attribute predictions.
 	preds = Vector{A}(undef, dN)
 
 	# Fill in the vector `preds`.
-	@inbounds for i in 1:dN
-		d = data[:, i]
+	for i in 1:dN
+		d = @view data[:, i]
 		min_dis = Inf
 		j_min = -1
 		for j in 1:cN
-			dis = metric(d, cl_centers[:, j])
+			dis = metric(d, @view cl_centers[:, j])
 			if dis < min_dis
 				min_dis = dis
 				j_min = j

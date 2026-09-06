@@ -2,7 +2,6 @@ module Cluster
 
 import OrderedCollections as OC
 import Random as R
-import Statistics as S
 import StatsBase as SB
 import LinearAlgebra as LA
 import Base.Threads as TH
@@ -37,11 +36,11 @@ Groups a set of points into `k` clusters based on the distance metric, `dmetric`
 
 # Keyword Arguments
 - `dmetric::F=L2`  : The distance metric to use.
-- `threshold::Float=1.0e-2`  : The relative error improvement threshold (using total variation)
+- `threshold::Float=1.0e-3`  : The relative error improvement threshold (using total variation)
 - `W::Union{Nothing, AbstractMatrix{T}}=nothing` : Optional `(nxn)` weight matrix for metric.
 - `N::Int=1000`    : The maximum number of iterations to try.
 - `seed::Int=0`    : If `seed` > 0, create a random number generator to use for initial clustering.
-- `check_W::Bool=false`: If `check_W`, check that the matrix, `W`, is strictly positive definite.
+- `check_W::Bool=false`: If `check_W`, check that the matrix, `W`, is symmetric and strictly positive definite.
     
 # Input Contract
 - ``W = {\\rm nothing} ∨ \\left( ({\\rm typeof}(W) = {\\rm Matrix}\\{T\\}) ∧ W \\in {\\boldsymbol S}_{++}^{n} \\right)``
@@ -52,7 +51,7 @@ Groups a set of points into `k` clusters based on the distance metric, `dmetric`
 
 # Return
 A Tuple:
-- `Dict{Int, Int}`  : Mapping of points (`n`-vectors) indices to centroid indices.
+- `Vector{Int}`     : Mapping of points (`n`-vectors) indices to centroid indices.
 - `Matrix{T}`       : (nxk) Matrix representing `k` centroids of `n`-vectors.
 - `Float64`         : The total variation between points and their centroids (using `dmetric`).
 - `Vector{Int}`     : Unused centroids (by index).
@@ -78,13 +77,22 @@ function kmeans_cluster(X::Matrix{T},
     =#
     if !((W === nothing) || ((typeof(W) <: AbstractMatrix{T}) && (size(W) == (n, n))))
         throw(DomainError(W, "The variable, `W`, which is not of type `Nothing` must be of type `Matrix{T}` with size(W) = $((n,n))"))
-	elseif check_W && (W !== nothing) 
-		if !isapprox(W, (W + permutedims(W, (2,1))) ./ (2 * one(T)), eps())
-       		throw(DomainError(W, "The variable, `W` is not a symmetric matrix."))
-		end
-		evals, _ = LA.eigen(W)
-		evals[1] <= zero(T) && throw(DomainError(W, "The variable `W` is not strictly positive definite."))
-    elseif !(1 <= k <= m)
+    end
+    if W !== nothing
+        if check_W
+            if !isapprox(W, permutedims(W, (2,1)); atol=sqrt(eps(T)) * max(one(T), maximum(abs, W)))
+                throw(DomainError(W, "The variable, `W` is not a symmetric matrix."))
+            end
+            if !LA.isposdef(LA.Symmetric(W))
+                throw(DomainError(W, "The variable `W` is not strictly positive definite."))
+            end
+        end
+        # The weight matrix is passed to the metric as the keyword `M`; make sure the metric accepts it.
+        if !hasmethod(dmetric, Tuple{typeof(view(X, :, 1)), typeof(view(X, :, 1))}, (:M,))
+            throw(ArgumentError("The metric, `dmetric`, does not accept a weight matrix keyword `M`; `W` must be `nothing` for this metric."))
+        end
+    end
+    if !(1 <= k <= m)
         throw(DomainError(k, "The variable, `k`, is not in the range `[1, m]`."))
     elseif !(N > 0)
         throw(DomainError(N, "The variable, `N`, is less than 1."))
@@ -98,35 +106,25 @@ function kmeans_cluster(X::Matrix{T},
         rng = R.Xoshiro(seed)
     end
 
-    # Randomly sample the `m` (`n`-vectors)
-    # We are permuting the columns as Julia stores matrices by columns.
+    # Randomly permute the `m` (`n`-vectors) (by column index).
     if rng === nothing
-        idx = SB.sample(1:m, m, replace=false)
+        perm = SB.sample(1:m, m, replace=false)
     else
-        idx = SB.sample(rng, 1:m, m, replace=false)
+        perm = SB.sample(rng, 1:m, m, replace=false)
     end
 
-    # Group the `m` vectors into `k` groups, find each of their means.
-    # These will be the initial `k` centers.
-    ck = div(m, k)
-    idx = 1 .+ (unique(div.(1:m, ck)) * ck)
-    idx[end] = min(idx[end], m)
-
-    #= Average the vectors in each group to form the group centers.
-       The averaging below double counts some points -- not important
-       as this just a starting point for cluster centers.
+    #= The initial `k` centers are `k` distinct, randomly chosen points
+       (the first `k` entries of the permutation). Distinct starting points give
+       each trial a genuinely different start, which is what repeated trials rely on.
 	=#
-    XCS = Array{T,2}(undef, n, k)
-    @inbounds  for j in 1:k
-		@views XCS[:, j] = S.mean(X[:, idx[j]:idx[j+1]], dims=2)
-    end
+    XCS = X[:, view(perm, 1:k)]
 
     # A map of points to centroids using indices: 1:m -> 1:k
     # The map will change as the centroids change.
     cmap = Vector{Int}(undef, m)
 
     # Number of points per centroid.
-    cntC = Vector{Int}(undef, m)
+    cntC = Vector{Int}(undef, k)
 
     # Variable used to keep track of previous total variation of clusters.
     tmax = typemax(T)
@@ -154,7 +152,7 @@ function kmeans_cluster(X::Matrix{T},
         for i in 1:m
             cv_min = tmax
             xv = @view X[:, i]
-            @simd for j in 1:k
+            for j in 1:k
                 xcsv = @view XCS[:, j]
                 cv = adj_metric(xv, xcsv)
             	if cv < cv_min
@@ -175,7 +173,8 @@ function kmeans_cluster(X::Matrix{T},
            5. Number of runs to completion.
            6. Did algorithm converge.
 		=#
-        if abs(tv_last - tv) / max(tv, tv_last) < threshold
+        denom = max(tv, tv_last)
+        if denom == zero(T) || abs(tv_last - tv) / denom < threshold
             return (cmap, XCS, tv, setdiff(1:k, unique(values(cmap))), l, true)
         end
 
@@ -183,13 +182,13 @@ function kmeans_cluster(X::Matrix{T},
         tv_last = tv
 
         # Compute the new centroids, for each cluster.
-        XCS = zeros(T, n, k)
+        fill!(XCS, zero(T))
         cntC .= 0 
 
         # Accumulate vectors in each centroid mapping.
         for mi in 1:m
             ci           = cmap[mi]
-            XCS[:, ci] .+= X[:, mi]
+            @views XCS[:, ci] .+= X[:, mi]
             cntC[ci]    += 1
         end
 
@@ -219,7 +218,7 @@ The groupings are determined based on the distance metric, `dmetric`.
 
 # Keyword Arguments
 - `dmetric::F=L2`          : The distance metric to use.
-- `threshold::Float=1.0e-2`: The relative error improvement threshold (using total variation)
+- `threshold::Float=1.0e-3`: The relative error improvement threshold (using total variation)
 - `W::Union{Nothing, AbstractMatrix{T}}=nothing` : Optional Weight matrix for metric.
 - `N::Int=1000`            : The maximum number of kmeans_clustering iterations to try for each cluster number.
 - `num_trials::Int=300`    : The number of times to run kmeans_clustering for a given cluster number. 
@@ -236,7 +235,7 @@ A Tuple with entries:
 - `OrderedDict{Int, Float}`         : 1:k -> The Total Variation for each cluster number.
 - `OrderedDict{Int, Vector{Int}}`   : 1:k -> Mapping of index of points (n-vectors in `X`) to centroid indices.
 - `OrderedDict{Int, Matrix{T}}`     : 1:k -> (nxk) Matrix representing `k` `n`-vector centroids.
-- `OrderedDict{Int, Vector{In64}}`  : 1:k -> Vector of unused centroids by index.
+- `OrderedDict{Int, Vector{Int}}`   : 1:k -> Vector of unused centroids by index.
 """
 function find_best_info_for_ks(X::Matrix{T},
                                kRng::UnitRange{Int};
@@ -252,7 +251,6 @@ function find_best_info_for_ks(X::Matrix{T},
     XC_by_k   = OC.OrderedDict{Int,Matrix{T}}()
     ucnt_by_k = OC.OrderedDict{Int,Vector{Int}}()
     tmax = typemax(T)
-    cnt = 0
     _, m = size(X)
 
     # Check input contract -- except the contract for the matrix `W`.
@@ -260,8 +258,12 @@ function find_best_info_for_ks(X::Matrix{T},
         throw(DomainError(N, "The parameter `N` is not in the range: [1, ...)"))
     elseif threshold <= 0.0
         throw(DomainError(threshold, "The parameter `threshold` is not in the range: (0, ...)"))
-    elseif length(setdiff(collect(kRng), collect(1:m))) != 0
-        throw(DomainError(typeof(kRng), 
+    elseif num_trials <= 0
+        throw(DomainError(num_trials, "The parameter `num_trials` is not in the range: [1, ...)"))
+    elseif isempty(kRng)
+        throw(DomainError(kRng, "The variable, `kRng`, is empty."))
+    elseif !(1 <= first(kRng) && last(kRng) <= m)
+        throw(DomainError(kRng, 
             """The variable, `kRng`, has at least one value in its range 
                that is not in the discrete interval [1, m]. Here `m` is the number 
                of points in the data matrix `X`."""))
@@ -277,35 +279,37 @@ function find_best_info_for_ks(X::Matrix{T},
         - The number of iterations used to complete kmeans_cluster.
         - Did kmeans_cluster converge before max iterates used? 
 	=#
+    # Check the matrix `W` once, up front, rather than inside the threaded loop.
+    if W !== nothing
+        kmeans_cluster(X, first(kRng); dmetric=dmetric, threshold=threshold, W=W, N=1, seed=seed, check_W=true)
+    end
+
 	lk = ReentrantLock()
     for k in kRng
         tv_by_k[k] = tmax
+        best_trial = typemax(Int)
         TH.@threads for i in 1:num_trials
-			check_W = i == 1 ? true : false # We only need to check W once.
-			local_cnt = 0
-			begin
-				lock(lk)
-				cnt += 1
-				local_cnt = cnt
-				unlock(lk)
-			end
-            cmap, XC, tv, ucnt, N, _ = kmeans_cluster(X, k               ;
+            #= The seed of each trial is a deterministic function of `(k, i)`,
+               so results do not depend on the order in which threads run.
+			=#
+            trial_seed = seed + (k - first(kRng)) * num_trials + i
+            cmap, XC, tv, ucnt, _, _ = kmeans_cluster(X, k               ;
                                                       dmetric=dmetric    ,
                                                       threshold=threshold,
                                                       W=W                ,
 													  N=N                ,
-													  seed=seed + local_cnt,
-													  check_W=check_W      )
-			begin
-				lock(lk)
-            	if tv < tv_by_k[k]
-                	tv_by_k[k]   = tv
-                	cmap_by_k[k] = cmap
-                	XC_by_k[k]   = XC
-                	ucnt_by_k[k] = ucnt
-            	end
-				unlock(lk)
-			end
+													  seed=trial_seed    ,
+													  check_W=false      )
+            lock(lk) do
+                # Ties in total variation are broken by the lowest trial index (deterministic).
+                if tv < tv_by_k[k] || (tv == tv_by_k[k] && i < best_trial)
+                    tv_by_k[k]   = tv
+                    cmap_by_k[k] = cmap
+                    XC_by_k[k]   = XC
+                    ucnt_by_k[k] = ucnt
+                    best_trial   = i
+                end
+            end
         end
     end
 
@@ -337,7 +341,7 @@ that the returned value of `k` is less that any value in the cluster range, `kRn
 
 # Keyword Arguments
 - `dmetric::F=L2`          : The distance metric to use.
-- `threshold::Float=1.0e-2`: The relative error improvement threshold (using total variation)
+- `threshold::Float=1.0e-3`: The relative error improvement threshold (using total variation)
 - `W::Union{Nothing, AbstractMatrix{T}}=nothing` : Optional Weight matrix for metric.
 - `N::Int=1000`            : The maximum number of kmeans_clustering iterations to try for each cluster number.
 - `num_trials::Int=300`    : The number of times to run kmeans_clustering for a given cluster number. 
@@ -353,7 +357,7 @@ that the returned value of `k` is less that any value in the cluster range, `kRn
 # Return
 A Tuple:
 - `Int`           : The "best" cluster number, `k`.
-- `Dict{Int, Int}`: Mapping of points (`n`-vectors) indices to centroid indices.
+- `Vector{Int}`   : Mapping of points (`n`-vectors) indices to centroid indices.
 - `Matrix{T}`     : Cluster centroids, represented as an `(n,k)` matrix.
 - `Float64`       : The total variation between points and their centroids (using `dmetric`).
 """
@@ -374,8 +378,10 @@ function find_best_cluster(X::Matrix{T},
         throw(DomainError(N, "The parameter `N` is not in the range: [1, ...)"))
     elseif threshold <= 0.0
         throw(DomainError(threshold, "The parameter `threshold` is not in the range: (0, ...)"))
-    elseif length(setdiff(collect(kRng), collect(1:m))) != 0
-        throw(DomainError(typeof(kRng), 
+    elseif isempty(kRng)
+        throw(DomainError(kRng, "The variable, `kRng`, is empty."))
+    elseif !(1 <= first(kRng) && last(kRng) <= m)
+        throw(DomainError(kRng, 
             """The variable, `kRng`, has at least one value in its range 
                that is not in the discrete interval [1, m]. Here `m` is the number 
                of points in the data matrix `X`."""))
@@ -429,7 +435,7 @@ function find_best_cluster(X::Matrix{T},
     vlen = length(var_by_k_mod)
     min_idx = Vector{Int}(undef, vlen)
     mono_var_by_k_mod = Vector{Float64}(undef, vlen)
-    @inbounds if vlen > 1
+    if vlen > 1
         monvar = var_by_k_mod[1]
         last_min_idx = 1
         for (l,v) in enumerate(var_by_k_mod)
@@ -450,7 +456,7 @@ function find_best_cluster(X::Matrix{T},
 
 		# The first two changes are special, we eliminate gaving only one 
 		# group if the second change is substantial.
-		if kfmod[1] > Cluster.REL_VAR_INIT_THRESHOLD_DROP_FACTOR * kfmod[2]
+		if length(kfmod) >= 2 && kfmod[1] > Cluster.REL_VAR_INIT_THRESHOLD_DROP_FACTOR * kfmod[2]
 			kcond[1] = false
 		end
 		if sum(kcond) == 0
@@ -474,12 +480,9 @@ function find_best_cluster(X::Matrix{T},
 
     # Else we need to remove unused centroids and re-index the used centroids.
     viable_centroid_idxs = setdiff(1:kbest, unct[kbest])
-    reindex_centroids = OC.OrderedDict{Int, Int}()
-    bcmap = OC.OrderedDict{Int, Int}()
-    cnt = 1
-    for i in viable_centroid_idxs
+    reindex_centroids = zeros(Int, kbest)
+    for (cnt, i) in enumerate(viable_centroid_idxs)
         reindex_centroids[i] = cnt
-        cnt += 1
     end
 
     if verbose
@@ -487,9 +490,7 @@ function find_best_cluster(X::Matrix{T},
     end
 
     # Remap the points to the index of the nearest centroid using the re-index map.
-    @inbounds for k in keys(cmap[kbest])
-        bcmap[k] = reindex_centroids[cmap[kbest][k]]
-    end
+    bcmap = map(c -> reindex_centroids[c], cmap[kbest])
     
     # Return (number-of-clusters, map-of-point-to-cluster-index, clusters, total-variation-of-fit)
     return (length(viable_centroid_idxs), bcmap, xc[kbest][:, viable_centroid_idxs], tv[kbest])
