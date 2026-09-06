@@ -108,7 +108,7 @@ find_best_cluster(X::Matrix{T}, kRng::UnitRange{Int}; dmetric::F=L2,
 ## Metric Functions
 
 ```@docs
-L2(::AbstractVector{T},::AbstractVector{T}; M=::Union{Nothing, AbstractMatrix{T}} = nothing) where {T <: Real}
+L2(::AbstractVector{T},::AbstractVector{T}; M::Union{Nothing, AbstractMatrix{T}}=nothing) where {T <: Real}
 ```
 
 ```@docs
@@ -124,7 +124,7 @@ KL(::AbstractVector{T},::AbstractVector{T}) where {T <: Real}
 ```
 
 ```@docs
-CD(::AbstractVector{T},::AbstractVector{T}; M=::Union{Nothing, AbstractMatrix{T}} = nothing) where {T <: Real}
+CD(::AbstractVector{T},::AbstractVector{T}; M::Union{Nothing, AbstractMatrix{T}}=nothing) where {T <: Real}
 ```
 
 ```@docs
